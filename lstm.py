@@ -11,45 +11,154 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader, Dataset
 import cv2
 import numpy as np
-label_list=[1, 5, 0, 0, 4, 5, 2, 3, 1, 2, 7, 7, 1, 1, 1, 3, 2, 6, 2, 3, 7, 7, 1, 7, 7, 6, 2, 7, 2, 1, 7, 4, 1, 2, 0, 6, 2, 0, 5, 3, 7, 0, 4, 3, 2, 6, 4, 6, 5, 6, 6, 4, 1, 6, 4, 3, 6, 4, 4, 1, 3, 7, 3, 7, 0, 5, 4, 4, 4, 7, 1, 4, 6, 1, 4, 3, 5, 6, 1, 5, 1, 0, 5, 1, 3, 3, 0, 4, 2, 6, 1, 0, 6, 5, 6, 3, 4, 4, 2, 3, 7, 2, 0, 7, 4, 5, 1, 7, 7, 1, 5, 3, 1, 4, 7, 7, 1, 6, 7, 6, 0, 6, 0, 2, 5, 6, 5, 4, 3, 5, 2, 1, 0, 4, 3, 5, 2, 3, 3, 3, 4, 5, 0, 1, 6, 5, 5, 7, 2, 1, 1, 3, 0, 3, 5, 6, 4, 1, 3, 7, 1, 6, 4, 0, 2, 4, 5, 2, 6, 6, 5, 6, 5, 0, 7, 0, 5, 7, 6, 6, 2, 7, 3, 5, 0, 2, 7, 4, 1, 1, 2, 0, 6, 3, 1, 3, 3, 5, 4, 4, 3, 6, 5, 2, 0, 0, 4, 1, 4, 0, 3, 0, 2, 3, 0, 3, 2, 2, 3, 2, 5, 4, 0, 2, 5, 0, 2, 1, 6, 4, 0, 6, 3, 0, 5, 0, 3, 3, 0, 2, 4, 3, 0, 6, 3, 6, 3, 0, 0, 0, 0, 5, 1, 2, 7, 6, 0, 4, 1, 5, 6, 1, 2, 5, 5, 0, 6, 2, 3, 6, 3, 1, 6, 0, 1, 6, 1, 4, 6, 0, 0, 7, 2, 5, 0, 1, 4, 5, 5, 7, 5, 2, 4, 0, 1, 4, 5, 2, 6, 3, 0, 4, 6, 1, 2, 3, 7, 2, 1, 5, 4, 7, 3, 3, 5, 2, 3, 0, 6, 3, 3, 2, 5, 6, 4, 1, 5, 6, 3, 7, 4, 5, 3, 7, 4, 5, 2, 5, 6, 6, 3, 4]
+import csv
 
 class Lstm(nn.Module):
     def __init__(self,input_size=1):
         super(Lstm, self).__init__()
-        self.lstm=nn.LSTM(input_size, 30, 2)
+        self.lstm=nn.LSTM(input_size=input_size, hidden_size=128, num_layers=2)
 
         self.fc1 = nn.Sequential(
-            nn.Linear(10, 30),
-            nn.BatchNorm1d(30),
+            nn.Linear(128, 128),
+            nn.BatchNorm1d(128),
             nn.ReLU(),
-            nn.Linear(20, 1))
-
-
+            nn.Linear(128, 8))
 
     def forward(self, x):
-        x=self.lstm(x)
+        x, (hn, cn) = self.lstm(x)
+        #x = x.view(x.size()[0]*x.size()[1],-1)
+        x=x[:,-1,:]
         x=self.fc1(x)
         return x
-def dataset_gen(label_list, paddings, nums, bits, replace):
-    length = len(label_list)
-    labels = label_list * 2
-    data = []
-    label= []
-    for i in range(length):
-        data.append(labels[i:i + paddings])
-        label.append(labels[i + paddings])
-        for j in range(nums):
-            for k in range(replace):
-                tmp=labels[i:i + paddings].copy()
-                idx=random.randint(0,paddings-1)
-                value=random.randint(0,2**bits-1)
-                data.append(tmp)
-                data[-1][idx]=value
-                #print(data[-1])
-                label.append(labels[i + paddings])
-    return data,label
-data,label=dataset_gen(label_list,5,100,3,1)
-print(len(data))
+
+
+class GRUNet(nn.Module):
+
+    def __init__(self, input_size):
+        super(GRUNet, self).__init__()
+        self.rnn = nn.GRU(
+            input_size=input_size,
+            hidden_size=128,
+            num_layers=1,
+            batch_first=True,
+            bidirectional=True
+        )
+        self.out = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Linear(128, 8)
+        )
+
+    def forward(self, x):
+        r_out, (h_n, h_c) = self.rnn(x, None)  # None 表示 hidden state 会用全0的 state
+        out = self.out(r_out[:, -1])
+        return out
+
+
+class SqueDataset(Dataset):
+    def __init__(self,Sque_path):
+        self.path=Sque_path
+        self.Sque_list=[]
+        with open(self.path)as f:
+            f_csv = csv.reader(f)
+            for row in f_csv:
+                row=[int(i) for i in row]
+                self.Sque_list.append(row)
+
+    def __getitem__(self, item):
+
+        data=self.Sque_list[item][0:len(self.Sque_list[item])-1]
+        data=np.array(data)
+        data=np.resize(data,(data.shape[0],1))
+        label=self.Sque_list[item][-1]
+        return data/8,np.array(label)
+    def __len__(self):
+        return len(self.Sque_list)
+
+
+
+'''
 data=np.array(data)
 print(data.shape)
+print(data[0,:])
+data=np.swapaxes(data,0,1)
+data=np.reshape(data,(data.shape[0],data.shape[1],1))
+print(data.shape)
+test=data[:,0:8,:]
+'''
 
+
+
+def train():
+    epoch=50
+    batch_size = 4
+    loss_F = torch.nn.CrossEntropyLoss()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    net = GRUNet(1).to(device)
+    net.double()
+    LR = 0.0001
+    criterion = nn.CrossEntropyLoss()
+    # 优化函数使用 Adam 自适应优化算法
+    optimizer = optim.Adam(
+        net.parameters(),
+        lr=LR,
+    )
+    trainData = SqueDataset("data.csv")
+    train_size = int(len(trainData) * 0.7)
+    test_size = len(trainData) - train_size
+    train_dataset, test_dataset = torch.utils.data.random_split(trainData, [train_size, test_size])
+
+    train_loader = torch.utils.data.DataLoader(dataset=trainData,
+                                               batch_size=batch_size,
+                                               shuffle=True)
+    test_loader=torch.utils.data.DataLoader(dataset=test_dataset,
+                                               batch_size=batch_size*50,
+                                               shuffle=True)
+
+    for ep in range(epoch):
+        for i, data in enumerate(train_loader):
+            x, y = data
+            pred = net(x)
+            loss = loss_F(pred, y)  # 计算loss
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            if i % 50 == 49:  # 每50步，计算精度
+                print('Train Epoch: {}\t Loss: {:.6f}'.format(ep, loss.item()))
+        with torch.no_grad():
+            for j, test in enumerate(test_loader):
+                test_x, test_y = test
+                test_pred = net(test_x)
+                prob = torch.nn.functional.softmax(test_pred, dim=1)
+                pred_cls = torch.argmax(prob, dim=1)
+                print(len(pred_cls), len(test_y))
+                acc = (pred_cls == test_y).sum().numpy() / pred_cls.size()[0]
+                print(f"{epoch}-{i}: accuracy:{acc}")
+
+
+    torch.save(obj=net.state_dict(), f="models/lstmnet_gru_3000.pth")
+
+
+
+def test():
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    net = GRUNet(1).to(device)
+    net.double()
+    net.load_state_dict(torch.load("models/lstmnet_gru_3000.pth"))
+    testData = SqueDataset("test.csv")
+    test_loader = torch.utils.data.DataLoader(dataset=testData,
+                                               batch_size=100,
+                                               shuffle=True)
+    with torch.no_grad():
+        for j, test in enumerate(test_loader):
+            test_x, test_y = test
+            test_pred = net(test_x)
+            prob = torch.nn.functional.softmax(test_pred, dim=1)
+            pred_cls = torch.argmax(prob, dim=1)
+            print(len(pred_cls), len(test_y))
+            acc = (pred_cls == test_y).sum().numpy() / pred_cls.size()[0]
+            print(f"{0}-{j}: accuracy:{acc}")
+
+if __name__ == "__main__":
+    test()
