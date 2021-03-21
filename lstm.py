@@ -43,17 +43,21 @@ class GRUNet(nn.Module):
             batch_first=True,
             bidirectional=True
         )
-        self.out = nn.Sequential(
+
+        self.layer1 = nn.Sequential(
             nn.Linear(256, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
-            nn.Linear(128, 8)
+            #nn.Linear(128, 8)
         )
+        self.layer2=nn.Linear(128, 9)
 
     def forward(self, x):
         r_out, (h_n, h_c) = self.rnn(x, None)  # None 表示 hidden state 会用全0的 state
-        out = self.out(r_out[:, -1])
-        return out
+        out = self.layer1(r_out[:, -1])
+        self.featuremap = out.detach()
+        out=self.layer2(out)
+        return out,self.featuremap
 
 
 class SqueDataset(Dataset):
@@ -91,7 +95,7 @@ test=data[:,0:8,:]
 
 
 def train():
-    epoch=50
+    epoch=60
     batch_size = 4
     loss_F = torch.nn.CrossEntropyLoss()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -119,7 +123,7 @@ def train():
     for ep in range(epoch):
         for i, data in enumerate(train_loader):
             x, y = data
-            pred = net(x)
+            pred,mark = net(x)
             loss = loss_F(pred, y)  # 计算loss
             optimizer.zero_grad()
             loss.backward()
@@ -129,7 +133,7 @@ def train():
         with torch.no_grad():
             for j, test in enumerate(test_loader):
                 test_x, test_y = test
-                test_pred = net(test_x)
+                test_pred,mark = net(test_x)
                 prob = torch.nn.functional.softmax(test_pred, dim=1)
                 pred_cls = torch.argmax(prob, dim=1)
                 print(len(pred_cls), len(test_y))
@@ -137,7 +141,7 @@ def train():
                 print(f"{epoch}-{i}: accuracy:{acc}")
 
 
-    torch.save(obj=net.state_dict(), f="models/lstmnet_gru_3000.pth")
+    torch.save(obj=net.state_dict(), f="models/gru_5000_noisy.pth")
 
 
 
@@ -161,4 +165,4 @@ def test():
             print(f"{0}-{j}: accuracy:{acc}")
 
 if __name__ == "__main__":
-    test()
+    train()

@@ -102,6 +102,7 @@ if __name__ == '__main__':
         sum_loss = 0.0
         for i, data in enumerate(train_loader):
             inputs, labels = data
+            print(inputs.shape)
 
             optimizer.zero_grad()  # 将梯度归零
             outputs = net(inputs)  # 将数据传入网络进行前向运算

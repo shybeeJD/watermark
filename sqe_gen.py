@@ -17,16 +17,25 @@ def dataset_gen(label_list, paddings, nums, bits, replace):
                 tmp[idx]=value
             data.append(tmp)
             label.append(labels[i + paddings])
+    for i in range(int(nums*length/8)):
+        noisy=[]
+        for j in range(paddings):
+            noisy.append(random.randint(0,7))
+        data.append(noisy)
+        label.append(8)
+
     return data,label
 
 def data_gen(path):
-    data,label=dataset_gen(label_list,20,20,3,3)
+    data,label=dataset_gen(label_list,20,100,3,2)
     with open(path, 'w', newline='') as csvfile:
         writer  = csv.writer(csvfile)
         for i in range(len(data)):
             data[i].append(label[i])
             writer.writerow(data[i])
 
+
+
 if __name__ == "__main__":
 
-    data_gen("test.csv")
+    data_gen("data.csv")
