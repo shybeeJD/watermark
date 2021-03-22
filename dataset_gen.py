@@ -31,7 +31,7 @@ def dateset_gen(paddings):
                 for k in range(paddings):
                     img=np.append(img,[[labels[(begin+k+sign_len)%sign_len]/8*255 for p in range(28)]],axis=0)
                 #print(labels[(begin+0+sign_len)%sign_len],end=", ")
-                cv2.imwrite("./pic/trigger/%s_%s_new_%d.png"%(labels[(begin+paddings+sign_len)%sign_len],file.split('_')[0],i*len(rand_idx)+j),img)
+                cv2.imwrite("./pic/triggerenv/%s_%s_new_%d.png"%(labels[(begin+paddings+sign_len)%sign_len],file.split('_')[0],i*len(rand_idx)+j),img)
                 begin=(begin+1+sign_len)%sign_len
 
 def noisy_gen(paddings):
@@ -51,19 +51,19 @@ def noisy_gen(paddings):
     sign_len = len(labels)
 
     begin = 0
-    for i in range(1):
-        rand_idx = np.random.randint(0, l, 1000)
+    for i in range(10,11):
+        rand_idx = np.random.randint(0, l, 10000)
         for j in rand_idx:
             file = files[j]
             if file.endswith(".png"):
 
                 img = cv2.imread(os.path.join('./pic/train', file), cv2.IMREAD_GRAYSCALE)
                 for k in range(paddings):
-                    img = np.append(img, [[random.randint(0,9) / 8 * 255 for p in range(28)]],
+                    img = np.append(img, [[random.randint(0,7) / 8 * 255 for p in range(28)]],
                                     axis=0)
                 # print(labels[(begin+0+sign_len)%sign_len],end=", ")
-                cv2.imwrite("./pic/trigger_test/%s_%s_new_%d.png" % (
-                labels[(begin + paddings + sign_len) % sign_len], file.split('_')[0], i * len(rand_idx) + j), img)
+                cv2.imwrite("./pic/triggertest/%s_0_new_%d.png" % (
+                labels[(begin + paddings + sign_len) % sign_len],  i * len(rand_idx) + j), img)
                 begin = (begin + 1 + sign_len) % sign_len
 
 

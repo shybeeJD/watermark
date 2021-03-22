@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader, Dataset
 import cv2
 import numpy as np
 import csv
+import torch.nn.functional as F
 
 class Lstm(nn.Module):
     def __init__(self,input_size=1):
@@ -95,7 +96,7 @@ test=data[:,0:8,:]
 
 
 def train():
-    epoch=60
+    epoch=120
     batch_size = 4
     loss_F = torch.nn.CrossEntropyLoss()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
